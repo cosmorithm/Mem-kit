@@ -222,7 +222,9 @@ node memory-kit/bin/memory.mjs version
 sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
 ```
 
-退出码：`0` 一致、`1` 落后、`2` 未安装、`3` 无法核对（无网络）、`4` 本地比母本新。更新方式见 `BootMemory.md` §4.2——整目录覆盖，数据不受影响。
+退出码：`0` 一致、`1` 落后、`2` 未安装、`3` 无法核对（无网络）、`4` 本地比母本新。
+
+`raw.githubusercontent.com` 有 CDN 缓存，刚推送的版本可能几分钟内取到旧值。脚本在"raw 与本地不一致"时会再用 GitHub API 复核一次，以 API 为准；因此刚发布后不会误报"本地更新"。想换核对地址用 `MEM_KIT_RAW`，想换复核地址用 `MEM_KIT_API`。更新方式见 `BootMemory.md` §4.2——整目录覆盖，数据不受影响。
 
 需要离线核对时，把 `MEM_KIT_RAW` 指向本地版本文件：
 

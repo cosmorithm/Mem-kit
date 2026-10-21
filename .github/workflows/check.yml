@@ -43,6 +43,13 @@ jobs:
           set -e
           test "$code" -eq 1
 
+      - name: 版本自检（raw 缓存延迟应由 API 纠正为 0）
+        run: |
+          printf '9.9.9\n' > "$RUNNER_TEMP/stale-version"
+          MEM_KIT_RAW="file://$RUNNER_TEMP/stale-version" \
+          MEM_KIT_API="file://$PWD/memory-kit/VERSION" \
+          sh memory-kit/bin/selfcheck.sh
+
       - name: 版本自检（领先应返回 4）
         run: |
           printf '0.0.1\n' > "$RUNNER_TEMP/ahead-version"

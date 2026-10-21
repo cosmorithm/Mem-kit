@@ -129,7 +129,7 @@ sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
 | --- | --- |
 | 记忆契约 | v1 |
 | BootMemory | v1 |
-| memory-kit | v1.4.1 |
+| memory-kit | v1.4.2 |
 
 单元头部写 `"memory": 1`。工具遇到非 v1 的单元会直接报错，而不是按旧规则猜新格式。
 
