@@ -352,9 +352,14 @@ export function validateUnit(unit, { now = new Date(), requireVars = false, stal
         for (const column of ['日期', '任务', '结果']) {
           if (!header.includes(column)) add(errors, `第 ${chapter.number} 章的 tasks 表缺少"${column}"列。`);
         }
+        const evidenceColumn = tables[0].header.findIndex((h) => h.includes('证据'));
+        const resultColumn = tables[0].header.findIndex((h) => h.includes('结果'));
         for (const row of tables[0].rows) {
-          const evidence = row[tables[0].header.findIndex((h) => h.includes('证据'))];
-          if (evidence && !/[Ee][0-4]/.test(evidence)) add(warnings, `第 ${chapter.number} 章的任务"${row[1] || row[0]}"证据等级不是 E0–E4：${evidence}`);
+          const evidence = evidenceColumn >= 0 ? row[evidenceColumn] : '';
+          const resultText = resultColumn >= 0 ? row[resultColumn] : '';
+          const label = row[tables[0].header.findIndex((h) => h.includes('任务'))] || row[0];
+          if (evidence && !/[Ee][0-4]/.test(evidence)) add(warnings, `第 ${chapter.number} 章的任务"${label}"证据等级不是 E0–E4：${evidence}`);
+          else if (/完成/.test(resultText) && /^E0/i.test(evidence)) add(warnings, `第 ${chapter.number} 章的任务"${label}"标为完成，但证据是 E0（计划）：要么补证据，要么改结果。`);
         }
       }
     }

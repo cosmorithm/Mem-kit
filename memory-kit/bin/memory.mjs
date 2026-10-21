@@ -151,7 +151,20 @@ const commands = {
     const chapter = unit.chapters.find((item) => item.memoryKind === 'tasks');
     if (!chapter) throw new MemoryError(`单元 ${unit.meta.id} 没有 tasks 章节：先加一章 "## N. 任务日志" 并在 chapterTypes 里声明 "tasks"。`);
 
-    const date = typeof flags.date === 'string' ? flags.date : new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    const date = typeof flags.date === 'string' ? flags.date : today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00:00Z`).getTime())) {
+      throw new MemoryError(`--date 必须是 YYYY-MM-DD：${date}`);
+    }
+    const evidence = String(typeof flags.evidence === 'string' ? flags.evidence : 'E0').toUpperCase();
+    if (!/^E[0-4]$/.test(evidence)) {
+      throw new MemoryError(`--evidence 必须是 E0–E4：${flags.evidence}`);
+    }
+    // 表格单元格里不能出现竖线、换行和制表符，否则整张表会被撑坏
+    const clean = (value) => {
+      const text = String(value ?? '').replace(/[|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      return text || '—';
+    };
     let commit = '';
     if (flags.commit) {
       const ref = typeof flags.commit === 'string' ? flags.commit : 'HEAD';
@@ -163,12 +176,12 @@ const commands = {
         console.log(yellow('! 取不到提交信息（不是 git 仓库或 ref 无效），本次不绑定提交'));
       }
     }
-    const artifact = typeof flags.artifact === 'string' ? flags.artifact : '—';
+    const artifact = clean(typeof flags.artifact === 'string' ? flags.artifact : '—');
     const values = {
       日期: date,
-      任务: task,
-      结果: typeof flags.result === 'string' ? flags.result : '完成',
-      证据: typeof flags.evidence === 'string' ? flags.evidence : 'E0',
+      任务: clean(task),
+      结果: clean(typeof flags.result === 'string' ? flags.result : '完成'),
+      证据: evidence,
       产物: commit ? `${artifact === '—' ? '' : `${artifact} · `}提交 ${commit}` : artifact,
     };
 
@@ -195,18 +208,23 @@ const commands = {
       const key = Object.keys(values).find((name) => cell.includes(name));
       return key ? values[key] : '—';
     });
+    const original = text;
     lines.splice(lastTable + 1, 0, `| ${row.join(' | ')} |`);
-    text = lines.join('\n').replace(/("updated":\s*")\d{4}-\d{2}-\d{2}(")/, `$1${date}$2`);
+    // updated 记的是"最后一次编辑"，用今天；--date 只影响任务行的日期
+    text = lines.join('\n').replace(/("updated":\s*")\d{4}-\d{2}-\d{2}(")/, `$1${today}$2`);
     fs.writeFileSync(file, text);
 
     const refreshed = parseUnitFile(file, { mode: 'local' });
     const result = validateUnit(refreshed, { expectedId: refreshed.meta.id });
-    console.log(green(`✓ 已记录：${date} · ${task}`));
-    console.log(dim(`  ${path.relative(cwd, file)} 第 ${chapter.number} 章 · 证据 ${values['证据']} · 产物 ${values['产物']}`));
     if (result.errors.length) {
+      fs.writeFileSync(file, original);
       for (const error of result.errors) console.error(red(`  错误 ${error}`));
-      process.exit(1);
+      throw new MemoryError('写入会让单元不合法，已回滚，没有改动文件。');
     }
+    console.log(green(`✓ 已记录：${date} · ${values['任务']}`));
+    console.log(dim(`  ${path.relative(cwd, file)} 第 ${chapter.number} 章 · 证据 ${values['证据']} · 产物 ${values['产物']}`));
+    if (values['证据'] === 'E0') console.log(yellow('  提示：证据是 E0（计划），完成的任务通常应该是 E1–E4。'));
+    for (const warning of result.warnings) console.log(yellow(`  警告 ${warning}`));
   },
 
   git(positional, flags) {

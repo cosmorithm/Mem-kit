@@ -267,6 +267,15 @@ MEM_KIT_RAW="file:///path/to/Mem-kit/memory-kit/VERSION" sh memory-kit/bin/selfc
 node memory-kit/bin/memory.mjs done --unit <id> --task "完成了什么" --evidence E3 --artifact 产物
 ```
 
+`done` 的输入规则（都是血眼泪换来的）：
+
+| 输入 | 规则 |
+| --- | --- |
+| 任务 / 结果 / 产物 | 竖线、换行、制表符会被压成空格；单元格里不能有 `\|` |
+| `--date` | 必须是合法的 `YYYY-MM-DD`；只影响任务行，不动头部 `updated` |
+| `--evidence` | 必须是 `E0`–`E4`；省略时按 `E0` 记，并提示补证据 |
+| 写入后校验 | 如果新内容不合法，**回滚文件**并报错，绝不留下坏表格 |
+
 ### 12.2 进度可视化（可选模块）
 
 `memory-viz` 是独立模块，`install.sh --with-viz` 才会装。它只读不写，生成一个自包含 HTML：
