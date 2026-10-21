@@ -42,6 +42,7 @@ cd /tmp/mem-kit && git pull
 | `memory-kit/lib/memory.mjs` | 解析、校验、渲染、摘要、索引 |
 | `memory-kit/bin/memory.mjs` | 命令行入口 |
 | `memory-kit/bin/selfcheck.sh` | 与母本比对版本，供 BootMemory §4.2 调用 |
+| `memory-kit/bin/memory.mjs git` | 列出没有被任务台账引用的提交，用于补记 |
 | `memory-kit/templates/unit.md` | 新单元骨架 |
 | `memory-viz/bin/viz.mjs` | 可选模块：生成自包含的进度页 `memory/progress.html` |
 | `examples/demo/` | 可校验的最小项目，CI 每次都会跑它 |
@@ -64,6 +65,12 @@ node memory-kit/bin/memory.mjs new <id> --title "标题"
 
 # 记录一个完成的小任务（追加到 tasks 章节）
 node memory-kit/bin/memory.mjs done --unit <id> --task "完成了什么" --evidence E3 --artifact 产物
+
+# 记录并绑定当前提交
+node memory-kit/bin/memory.mjs done --unit <id> --task "完成了什么" --evidence E3 --commit
+
+# 找出还没进任务台账的提交
+node memory-kit/bin/memory.mjs git --unit <id>
 
 # 生成进度页（需 --with-viz 安装）
 node memory-viz/bin/viz.mjs --config memory/memory.config.json
@@ -122,7 +129,7 @@ sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
 | --- | --- |
 | 记忆契约 | v1 |
 | BootMemory | v1 |
-| memory-kit | v1.3.0 |
+| memory-kit | v1.4.0 |
 
 单元头部写 `"memory": 1`。工具遇到非 v1 的单元会直接报错，而不是按旧规则猜新格式。
 

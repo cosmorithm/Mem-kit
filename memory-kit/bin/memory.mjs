@@ -3,6 +3,7 @@
 // 用法：node memory-kit/bin/memory.mjs <command> [options]
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   loadMemoryUnits,
@@ -21,7 +22,8 @@ const kitRoot = path.resolve(here, '..');
 const USAGE = `Memory Kit
 
 用法：
-  memory.mjs done --unit <id> --task "完成了什么" [--result 完成] [--evidence E3] [--artifact 产物]
+  memory.mjs done --unit <id> --task "完成了什么" [--result 完成] [--evidence E3] [--artifact 产物] [--commit [ref]]
+  memory.mjs git [--unit <id>] [--limit 20] [--json]   # 列出没有被任务台账引用的提交
   memory.mjs version                        # 工具版本与支持的契约版本
   memory.mjs new <id> --title "标题" [--kind practice] [--config memory/memory.config.json] [--force]
   memory.mjs check [--config <file>] [--unit <id>] [--json] [--require-vars]
@@ -150,12 +152,24 @@ const commands = {
     if (!chapter) throw new MemoryError(`单元 ${unit.meta.id} 没有 tasks 章节：先加一章 "## N. 任务日志" 并在 chapterTypes 里声明 "tasks"。`);
 
     const date = typeof flags.date === 'string' ? flags.date : new Date().toISOString().slice(0, 10);
+    let commit = '';
+    if (flags.commit) {
+      const ref = typeof flags.commit === 'string' ? flags.commit : 'HEAD';
+      try {
+        const line = execFileSync('git', ['log', '-1', '--format=%h%x09%s', ref], { cwd: path.dirname(unit.file), encoding: 'utf8' }).trim();
+        const [hash] = line.split('\t');
+        if (hash) commit = hash;
+      } catch {
+        console.log(yellow('! 取不到提交信息（不是 git 仓库或 ref 无效），本次不绑定提交'));
+      }
+    }
+    const artifact = typeof flags.artifact === 'string' ? flags.artifact : '—';
     const values = {
       日期: date,
       任务: task,
       结果: typeof flags.result === 'string' ? flags.result : '完成',
       证据: typeof flags.evidence === 'string' ? flags.evidence : 'E0',
-      产物: typeof flags.artifact === 'string' ? flags.artifact : '—',
+      产物: commit ? `${artifact === '—' ? '' : `${artifact} · `}提交 ${commit}` : artifact,
     };
 
     const file = unit.file;
@@ -193,6 +207,36 @@ const commands = {
       for (const error of result.errors) console.error(red(`  错误 ${error}`));
       process.exit(1);
     }
+  },
+
+  git(positional, flags) {
+    const { units } = loadUnits(flags);
+    const limit = Number.isFinite(Number(flags.limit)) ? Number(flags.limit) : 20;
+    let log = '';
+    try {
+      log = execFileSync('git', ['log', `-n${limit}`, '--date=short', '--pretty=format:%h%x09%ad%x09%s'], { cwd, encoding: 'utf8' });
+    } catch {
+      throw new MemoryError('当前目录不是 git 仓库，或 git 不可用。');
+    }
+    const commits = log.split('\n').filter(Boolean).map((line) => {
+      const [hash, date, subject] = line.split('\t');
+      return { hash, date, subject };
+    });
+    const text = units.map(({ unit }) => fs.readFileSync(unit.file, 'utf8')).join('\n');
+    const unlogged = commits.filter((commit) => !text.includes(commit.hash));
+    if (flags.json) {
+      console.log(JSON.stringify({ tool: 'memory-kit', version: KIT_VERSION, total: commits.length, unlogged }, null, 2));
+      return;
+    }
+    console.log(dim(`检查最近 ${commits.length} 条提交，${unlogged.length} 条没进任务台账`));
+    if (!unlogged.length) {
+      console.log(green('✓ 全部提交都能在台账里找到'));
+      return;
+    }
+    for (const commit of unlogged) console.log(`  ${commit.hash}  ${commit.date}  ${commit.subject}`);
+    console.log('');
+    console.log(dim('挑对项目状态有影响的补记，例如：'));
+    console.log(dim(`  memory.mjs done --unit ${units[0].entry.id} --task "<任务>" --evidence E3 --commit ${unlogged[0].hash}`));
   },
 
   vars(positional, flags) {

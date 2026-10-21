@@ -128,10 +128,15 @@ function renderChart(points, totals, peak, sum) {
   </svg>`;
 }
 
+const hashChip = (artifact = '') => {
+  const match = /提交\s*([0-9a-f]{6,40})/.exec(artifact);
+  return match ? `<code class="hash" title="${esc(artifact)}">${esc(match[1])}</code>` : '';
+};
+
 const unitCard = (card) => {
   const { entry, unit, tasks, open, ratio, age, state, validation } = card;
   const taskRows = tasks.slice(0, 6).map((task) => `
-        <li><time>${esc(task.date)}</time><span class="t">${esc(task.task)}</span>${task.evidence ? `<em class="ev">${esc(task.evidence)}</em>` : ''}</li>`).join('');
+        <li><time>${esc(task.date)}</time><span class="t">${esc(task.task)}</span>${hashChip(task.artifact)}${task.evidence ? `<em class="ev">${esc(task.evidence)}</em>` : ''}</li>`).join('');
   const todo = open.filter((item) => item.source !== 'facts');
   const check = open.filter((item) => item.source === 'facts');
   const openRows = [...todo.slice(0, 5), ...check.slice(0, 4)].map((item) => `
@@ -153,7 +158,7 @@ const unitCard = (card) => {
 const timeline = allTasks
   .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   .slice(0, 40)
-  .map((task) => `<li><time>${esc(task.date)}</time><span class="u">${esc(task.unit)}</span><span class="t">${esc(task.task)}</span>${task.evidence ? `<em class="ev">${esc(task.evidence)}</em>` : ''}</li>`)
+  .map((task) => `<li><time>${esc(task.date)}</time><span class="u">${esc(task.unit)}</span><span class="t">${esc(task.task)}</span>${hashChip(task.artifact)}${task.evidence ? `<em class="ev">${esc(task.evidence)}</em>` : ''}</li>`)
   .join('');
 
 const evidenceBars = Object.entries(evidence).map(([level, count]) => `
@@ -201,6 +206,7 @@ const html = `<!doctype html>
   .evrow b{min-width:26px;color:var(--dim);font-weight:600}
   .evbar{flex:1;height:8px;background:#ececea;border-radius:99px;overflow:hidden}
   .evbar i{display:block;height:100%;background:#64748b}
+  .hash{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#475569;background:#f1f5f9;border-radius:4px;padding:1px 5px}
   .evrow em{font-style:normal;min-width:28px;text-align:right;color:var(--dim)}
   footer{color:var(--dim);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
   @media print{body{background:#fff}.unit{break-inside:avoid}}

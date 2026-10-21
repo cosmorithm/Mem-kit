@@ -299,6 +299,7 @@ node memory-viz/bin/viz.mjs --config memory/memory.config.json
 1. 不手改生成物（站点产物、`memory/index.md` 等派生文件）。
 2. 本机信息用变量（正文写 `{{NAME}}`，真值放 `vars.local.json`），不写死路径、串口、序列号。
 3. 改完必须验证；验证不过就如实说"没验证通过"，不要写成"已完成"。
+4. 记忆的改动要提交到 git：合约升级、任务台账里的提交号、回退，全都依赖它。脏工作区里不要做契约迁移。
 
 ## 8. 移交清单
 

@@ -278,3 +278,31 @@ node memory-viz/bin/viz.mjs --config memory/memory.config.json
 输出 `memory/progress.html`，包含：单元卡片与完成比例、任务时间线、证据分布、未完成项（区分待办与待核对）。默认用 public 模式遮蔽变量，加 `--local` 才显示本机真值。
 
 模块退出码非 0 即表示读取失败；它不做校验，校验永远由 `memory-kit check` 负责。
+
+## 13. 与 git 集成
+
+git 知道"改了什么、何时改的"，记忆只需要回答"这算不算一件完成的事"。两者衔接点只有两处：
+
+### 13.1 记录时绑定提交
+
+```sh
+node memory-kit/bin/memory.mjs done --unit <id> --task "修好相机探测" --evidence E3 --commit
+```
+
+`--commit` 不带参数取 `HEAD`，带参数取指定 ref。记录时会把短哈希写进"产物"列（如 `probe.py · 提交 0a1b2c3`）。取不到 git 时只警告，不阻断记录。
+
+### 13.2 检查漏记
+
+```sh
+node memory-kit/bin/memory.mjs git --unit <id> --limit 20
+```
+
+列出最近 20 条提交中、短哈希没有出现在任何单元正文里的那些，并给出可直接执行的 `done` 示例。
+
+**它不是自动补记工具**：多数提交（同步、格式化、文档微调）不值得进台账。它只是把"可能漏了"的东西摆出来，由人决定。
+
+### 13.3 反过来的纪律
+
+记忆的改动必须提交到 git。理由不是"版本管理好看"，而是：契约升级要靠 git 回退，`migrate` 会拒绝在脏工作区执行；任务台账里引用的提交哈希也只有在历史里才成立。
+
+`BootMemory.md` §7.4 把它列为硬规则之一。
