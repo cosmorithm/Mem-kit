@@ -10,6 +10,8 @@ import {
   parseUnitFile,
   digestUnit,
   renderIndex,
+  KIT_VERSION,
+  SUPPORTED_CONTRACTS,
   MemoryError,
 } from '../lib/memory.mjs';
 
@@ -19,6 +21,7 @@ const kitRoot = path.resolve(here, '..');
 const USAGE = `Memory Kit
 
 用法：
+  memory.mjs version                        # 工具版本与支持的契约版本
   memory.mjs new <id> --title "标题" [--kind practice] [--config memory/memory.config.json] [--force]
   memory.mjs check [--config <file>] [--unit <id>] [--json] [--require-vars]
   memory.mjs digest [--config <file>] [--unit <id>] [--out <file>]
@@ -79,8 +82,11 @@ const commands = {
     const requireVars = flags['require-vars'] === true;
     const results = units.map(({ entry, unit }) => ({ entry, unit, ...validateUnit(unit, { requireVars, expectedId: entry.id }) }));
     if (flags.json) {
-      console.log(JSON.stringify({ config: configFile, units: results }, null, 2));
+      console.log(JSON.stringify({ kit: { version: KIT_VERSION, contracts: SUPPORTED_CONTRACTS }, config: configFile, units: results }, null, 2));
     } else {
+      console.log(dim(`memory-kit ${KIT_VERSION} · 支持契约 ${SUPPORTED_CONTRACTS.map((v) => `v${v}`).join(' / ')}`));
+      console.log(dim(configFile));
+      console.log('');
       for (const result of results) {
         const { stats } = result;
         const head = `${result.errors.length ? red('✗') : green('✓')} ${result.entry.id} — ${result.unit.meta.title}`;
@@ -172,6 +178,12 @@ const commands = {
 
 const { positional, flags } = parseArgs(process.argv.slice(2));
 const command = positional.shift();
+if (flags.version === true || command === 'version') {
+  console.log(`memory-kit ${KIT_VERSION}`);
+  console.log(`支持的契约：${SUPPORTED_CONTRACTS.map((v) => `v${v}`).join(' / ')}`);
+  console.log(`Node ${process.version}`);
+  process.exit(0);
+}
 if (!command || command === 'help' || flags.help) {
   console.log(USAGE);
   process.exit(0);

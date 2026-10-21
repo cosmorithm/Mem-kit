@@ -58,6 +58,9 @@ node memory-kit/bin/memory.mjs digest --config memory/memory.config.json --unit 
 
 # 新建单元
 node memory-kit/bin/memory.mjs new <id> --title "标题"
+
+# 查看装的是哪一版（工具版本 + 支持的契约版本）
+node memory-kit/bin/memory.mjs version
 ```
 
 多单元只需在 `memory/memory.config.json` 的 `units` 里追加：
@@ -106,7 +109,7 @@ node memory-kit/bin/memory.mjs new <id> --title "标题"
 | --- | --- |
 | 记忆契约 | v1 |
 | BootMemory | v1 |
-| memory-kit | v1.0.0 |
+| memory-kit | v1.1.0 |
 
 单元头部写 `"memory": 1`。工具遇到非 v1 的单元会直接报错，而不是按旧规则猜新格式。
 

@@ -3,6 +3,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** 本工具版本，读自 memory-kit/VERSION；拷到别处时随目录一起走。 */
+export const KIT_VERSION = (() => {
+  try {
+    return fs.readFileSync(new URL('../VERSION', import.meta.url), 'utf8').trim();
+  } catch {
+    return 'unknown';
+  }
+})();
+
+/** 本工具支持的契约版本。升级契约时先扩充这个列表，再改解析分支。 */
+export const SUPPORTED_CONTRACTS = [1];
+
 export const UNIT_KINDS = ['course', 'paper', 'practice', 'project', 'reference'];
 export const CHAPTER_KINDS = ['guide', 'facts', 'session', 'pitfalls', 'plan', 'refs'];
 export const VISIBILITIES = ['local', 'public'];
@@ -297,8 +309,8 @@ export function validateUnit(unit, { now = new Date(), requireVars = false, stal
   if (!meta.id) add(errors, '头部缺少 id。');
   else if (!KEBAB.test(meta.id)) add(errors, `id 必须是 kebab-case：${meta.id}`);
   else if (expectedId && meta.id !== expectedId) add(errors, `清单 id（${expectedId}）与单元头部 id（${meta.id}）不一致：索引和页面会指向两个名字。`);
-  if (meta.memory === undefined) add(warnings, '头部缺少 memory 契约版本字段（应为 1）。');
-  else if (meta.memory !== 1) add(errors, `本工具只支持契约 v1，单元声明的是 v${meta.memory}；请先升级 memory-kit。`);
+  if (meta.memory === undefined) add(warnings, `头部缺少 memory 契约版本字段（应为 ${SUPPORTED_CONTRACTS[0]}）。`);
+  else if (!SUPPORTED_CONTRACTS.includes(meta.memory)) add(errors, `memory-kit ${KIT_VERSION} 只支持契约 ${SUPPORTED_CONTRACTS.map((v) => `v${v}`).join(' / ')}，单元声明的是 v${meta.memory}；请先升级 memory-kit。`);
   if (!meta.title) add(errors, '头部缺少 title。');
   if (!UNIT_KINDS.includes(meta.kind)) add(errors, `kind 必须是 ${UNIT_KINDS.join(' / ')} 之一，实际 ${meta.kind}`);
   if (!VISIBILITIES.includes(meta.visibility)) add(errors, `visibility 必须是 ${VISIBILITIES.join(' / ')} 之一，实际 ${meta.visibility}`);

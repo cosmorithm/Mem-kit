@@ -206,10 +206,26 @@ node memory-kit/bin/memory.mjs check
 
 ## 11. 契约版本与升级
 
+### 11.1 确认你装的是哪一版
+
+```sh
+node memory-kit/bin/memory.mjs version
+```
+
+输出工具版本、支持的契约版本与 Node 版本。工具版本写在 `memory-kit/VERSION`，随目录一起复制，所以每个项目都能自报版本；`check` 的抬头也会打印这两个号，`check --json` 里是 `kit.version` 与 `kit.contracts`。
+
+判断某个项目是否落后于母本：
+
+```sh
+diff -rq /path/to/project/memory-kit ~/.bootmemory/memory-kit
+```
+
+### 11.2 版本规则
+
 单元头部有 `"memory": 1`，表示它遵循本规范的 v1。`check` 的规则：
 
 - 缺少该字段 → 警告（旧单元仍可读）。
-- 值不等于 `1` → **错误**，提示先升级 `memory-kit`。宁可拒绝解析，也不要按旧规则猜新格式。
+- 值不在工具支持列表里 → **错误**，提示先升级 `memory-kit`。宁可拒绝解析，也不要按旧规则猜新格式。
 
 将来发布 v2 时按这个顺序做，避免把老单元读坏：
 
