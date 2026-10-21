@@ -557,7 +557,8 @@ export function collectOpenItems(unit) {
   for (const table of collectFactTables(unit)) {
     for (const row of table.rows) {
       const text = row.slice(1).join('；');
-      if (UNFINISHED.test(text)) open.push({ where: `第 ${table.chapter.number} 章`, text: `${row[0]}：${text}`, source: 'facts' });
+      const clean = (value) => String(value).replace(/`/g, '').replace(/\s+/g, ' ').trim();
+      if (UNFINISHED.test(text)) open.push({ where: `第 ${table.chapter.number} 章`, text: `${clean(row[0])}：${clean(text)}`, source: 'facts' });
     }
   }
   return open;
