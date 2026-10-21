@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "staleAfterDays": 30,
+  "units": [
+    { "id": "demo", "file": "demo/unit.md" }
+  ]
+}

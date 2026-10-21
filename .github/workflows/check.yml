@@ -1,0 +1,28 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: 校验示例项目的记忆契约
+        run: node memory-kit/bin/memory.mjs check --config examples/demo/memory/memory.config.json
+
+      - name: 安装脚本冒烟测试
+        run: |
+          mkdir -p "$RUNNER_TEMP/target"
+          ./install.sh "$RUNNER_TEMP/target"
+          test -f "$RUNNER_TEMP/target/BootMemory.md"
+          test -f "$RUNNER_TEMP/target/memory-kit/bin/memory.mjs"
+          npm_config_loglevel=error node "$RUNNER_TEMP/target/memory-kit/bin/memory.mjs" check --config examples/demo/memory/memory.config.json
