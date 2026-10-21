@@ -51,6 +51,32 @@ for (const { unit } of units) {
   }
 }
 
+const byDate = new Map();
+for (const task of allTasks) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(task.date)) continue;
+  byDate.set(task.date, (byDate.get(task.date) || 0) + 1);
+}
+const dates = [...byDate.keys()].sort();
+const series = [];
+if (dates.length) {
+  const start = new Date(`${dates[0]}T00:00:00Z`);
+  const end = new Date(`${dates[dates.length - 1]}T00:00:00Z`);
+  for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
+    const key = day.toISOString().slice(0, 10);
+    series.push({ date: key, count: byDate.get(key) || 0 });
+  }
+}
+const cumulative = series.reduce((list, point) => {
+  list.push((list[list.length - 1] || 0) + point.count);
+  return list;
+}, []);
+const doneCount = allTasks.length;
+const maxDaily = Math.max(1, ...series.map((point) => point.count));
+const weekly = allTasks.filter((task) => {
+  const when = new Date(`${task.date}T00:00:00Z`).getTime();
+  return Number.isFinite(when) && Date.now() - when <= 7 * 86400000;
+}).length;
+
 const cards = units.map(({ entry, unit, validation }) => {
   const tasks = collectTasks(unit).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const open = collectOpenItems(unit);
@@ -65,6 +91,42 @@ const doneTotal = cards.reduce((sum, card) => sum + card.tasks.length, 0);
 const openTotal = cards.reduce((sum, card) => sum + card.open.length, 0);
 const errTotal = cards.reduce((sum, card) => sum + card.validation.errors.length, 0);
 const evidenceMax = Math.max(1, ...Object.values(evidence));
+
+function renderChart(points, totals, peak, sum) {
+  const W = 960, H = 230, L = 60, R = 34, T = 34, B = 34;
+  const innerH = H - T - B;
+  const count = points.length;
+  const barW = count > 1 ? 14 : 18;
+  const plotL = L + barW / 2;
+  const plotR = W - R - barW / 2;
+  const innerW = plotR - plotL;
+  const xAt = (index) => plotL + (count > 1 ? (index * innerW) / (count - 1) : innerW / 2);
+  const yBar = (value) => T + innerH - (value / peak) * innerH;
+  const yLine = (value) => T + innerH - (value / Math.max(1, sum)) * innerH;
+  const bars = points.map((point, index) => (point.count
+    ? `<rect x="${(xAt(index) - barW / 2).toFixed(1)}" y="${yBar(point.count).toFixed(1)}" width="${barW}" height="${(T + innerH - yBar(point.count)).toFixed(1)}" rx="2" fill="#b8c4d4"><title>${esc(point.date)} · ${point.count} 项</title></rect>`
+    : '')).join('');
+  // 从 0 起笔：第一天的增量画成一段竖线，否则累计曲线会像一条平线
+  const path = [
+    `M${xAt(0).toFixed(1)},${yLine(0).toFixed(1)}`,
+    `L${xAt(0).toFixed(1)},${yLine(totals[0]).toFixed(1)}`,
+    ...totals.slice(1).map((value, index) => `L${xAt(index + 1).toFixed(1)},${yLine(value).toFixed(1)}`),
+  ].join(' ');
+  const dots = points.map((point, index) => (point.count
+    ? `<circle cx="${xAt(index).toFixed(1)}" cy="${yLine(totals[index]).toFixed(1)}" r="2.8" fill="#0f766e"><title>${esc(point.date)} · 累计 ${totals[index]}</title></circle>`
+    : '')).join('');
+  const grid = [0, 0.5, 1].map((ratio) => `<line x1="${L}" y1="${(T + innerH * ratio).toFixed(1)}" x2="${W - R}" y2="${(T + innerH * ratio).toFixed(1)}" stroke="#ececea" stroke-width="1"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="任务积累曲线">
+    ${grid}
+    ${bars}
+    <path d="${path}" fill="none" stroke="#0f766e" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}
+    <text x="${L}" y="${T - 14}" font-size="11" fill="#94a3b8">柱=当日完成 · 峰值 ${peak} 项</text>
+    <text x="${W - R}" y="${T - 14}" font-size="11" fill="#0f766e" text-anchor="end">线=累计 ${sum} 项</text>
+    <text x="${L}" y="${H - 10}" font-size="11" fill="#6b6f76">${esc(points[0].date)}</text>
+    <text x="${W - R}" y="${H - 10}" font-size="11" fill="#6b6f76" text-anchor="end">${esc(points[count - 1].date)}</text>
+  </svg>`;
+}
 
 const unitCard = (card) => {
   const { entry, unit, tasks, open, ratio, age, state, validation } = card;
@@ -153,10 +215,13 @@ const html = `<!doctype html>
     <div class="stat"><b>${cards.length}</b><span>记忆单元</span></div>
     <div class="stat"><b>${doneTotal}</b><span>已完成任务</span></div>
     <div class="stat"><b>${openTotal}</b><span>未完成项</span></div>
+    <div class="stat"><b>${weekly}</b><span>近 7 天完成</span></div>
     <div class="stat"><b>${errTotal}</b><span>契约错误</span></div>
   </div>
 
   <section><h2>单元</h2>${cards.map(unitCard).join('')}</section>
+
+  ${series.length ? `<section><h2>任务积累</h2><div class="unit">${renderChart(series, cumulative, maxDaily, doneCount)}<p class="counts">共 ${doneCount} 项 · 跨越 ${series.length} 天 · 日均 ${(doneCount / series.length).toFixed(2)} 项 · 近 7 天 ${weekly} 项</p></div></section>` : ''}
 
   ${timeline ? `<section><h2>任务时间线</h2><div class="unit"><ul>${timeline}</ul></div></section>` : ''}
 
