@@ -16,7 +16,7 @@ export const KIT_VERSION = (() => {
 export const SUPPORTED_CONTRACTS = [1];
 
 export const UNIT_KINDS = ['course', 'paper', 'practice', 'project', 'reference'];
-export const CHAPTER_KINDS = ['guide', 'facts', 'session', 'pitfalls', 'plan', 'refs'];
+export const CHAPTER_KINDS = ['guide', 'facts', 'session', 'pitfalls', 'plan', 'refs', 'tasks'];
 export const VISIBILITIES = ['local', 'public'];
 
 export const EVIDENCE = {
@@ -344,6 +344,20 @@ export function validateUnit(unit, { now = new Date(), requireVars = false, stal
       if (!hasTable && !hasEvidence) add(warnings, `第 ${chapter.number} 章是 facts，但既没有表格也没有证据标记，事实难以核对。`);
       if (!hasEvidence) add(warnings, `第 ${chapter.number} 章是 facts，但没有证据标记（来源、核对日期或 E0–E4）。`);
     }
+    if (kind === 'tasks') {
+      const tables = extractTables(chapter);
+      if (!tables.length) add(errors, `第 ${chapter.number} 章是 tasks，必须包含一张任务表。`);
+      else {
+        const header = tables[0].header.join(' ');
+        for (const column of ['日期', '任务', '结果']) {
+          if (!header.includes(column)) add(errors, `第 ${chapter.number} 章的 tasks 表缺少"${column}"列。`);
+        }
+        for (const row of tables[0].rows) {
+          const evidence = row[tables[0].header.findIndex((h) => h.includes('证据'))];
+          if (evidence && !/[Ee][0-4]/.test(evidence)) add(warnings, `第 ${chapter.number} 章的任务"${row[1] || row[0]}"证据等级不是 E0–E4：${evidence}`);
+        }
+      }
+    }
     if (kind === 'plan' && !/^\s*(?:[-*]|\d+\.)\s/m.test(body)) add(warnings, `第 ${chapter.number} 章是 plan，但没有列表项。`);
     if (kind === 'refs' && !/\]\(https?:\/\//.test(body)) add(warnings, `第 ${chapter.number} 章是 refs，但没有外部链接。`);
   }
@@ -503,19 +517,47 @@ export function collectFactTables(unit) {
   return all.filter((table) => table.chapter.memoryKind === 'facts');
 }
 
+const COLUMN = (header, name) => header.findIndex((h) => h.includes(name));
+
+/** 从 tasks 章节里读出任务台账。列按表头名匹配：日期 / 任务 / 结果 / 证据 / 产物。 */
+export function collectTasks(unit) {
+  const tasks = [];
+  for (const chapter of unit.chapters.filter((item) => item.memoryKind === 'tasks')) {
+    for (const table of extractTables(chapter)) {
+      const date = COLUMN(table.header, '日期');
+      const task = COLUMN(table.header, '任务');
+      if (date < 0 || task < 0) continue;
+      const result = COLUMN(table.header, '结果');
+      const evidence = COLUMN(table.header, '证据');
+      const artifact = COLUMN(table.header, '产物');
+      for (const row of table.rows) {
+        tasks.push({
+          date: (row[date] || '').trim(),
+          task: (row[task] || '').trim(),
+          result: result >= 0 ? (row[result] || '').trim() : '',
+          evidence: evidence >= 0 ? (row[evidence] || '').trim() : '',
+          artifact: artifact >= 0 ? (row[artifact] || '').trim() : '',
+          chapter: chapter.number,
+        });
+      }
+    }
+  }
+  return tasks;
+}
+
 /** 跨单元收集"还没做完/还没核对"的条目。 */
 export function collectOpenItems(unit) {
   const open = [];
   for (const chapter of unit.chapters.filter((item) => item.memoryKind === 'plan')) {
     for (const line of chapter.lines) {
       const item = /^\s*(?:[-*]|\d+\.)\s+(?:\[[ xX]\]\s*)?(.+)$/.exec(line);
-      if (item && !/^\[[xX]\]/.test(line.trim().replace(/^[-*]\s+/, ''))) open.push({ where: `第 ${chapter.number} 章`, text: item[1].trim() });
+      if (item && !/^\[[xX]\]/.test(line.trim().replace(/^[-*]\s+/, ''))) open.push({ where: `第 ${chapter.number} 章`, text: item[1].trim(), source: 'plan' });
     }
   }
   for (const table of collectFactTables(unit)) {
     for (const row of table.rows) {
       const text = row.slice(1).join('；');
-      if (UNFINISHED.test(text)) open.push({ where: `第 ${table.chapter.number} 章`, text: `${row[0]}：${text}` });
+      if (UNFINISHED.test(text)) open.push({ where: `第 ${table.chapter.number} 章`, text: `${row[0]}：${text}`, source: 'facts' });
     }
   }
   return open;
@@ -561,6 +603,13 @@ export function digestUnit(unit, { maxFacts = 24, now = new Date() } = {}) {
   }
   lines.push('');
 
+  const tasks = collectTasks(unit).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  if (tasks.length) {
+    lines.push(`## 最近完成（共 ${tasks.length} 项）`);
+    for (const task of tasks.slice(0, 8)) lines.push(`- ${task.date} · ${task.task}${task.evidence ? `　<sub>${task.evidence}</sub>` : ''}`);
+    lines.push('');
+  }
+
   const sessions = unit.chapters.filter((chapter) => chapter.memoryKind === 'session');
   if (sessions.length) {
     lines.push('## 最近记录');
@@ -604,6 +653,7 @@ export function renderIndex(units, { configFile = 'memory/memory.config.json', s
   const warnings = units.reduce((sum, item) => sum + item.validation.warnings.length, 0);
   const varsUsed = new Set(units.flatMap(({ unit }) => unit.vars.used));
   const openTotal = units.reduce((sum, item) => sum + collectOpenItems(item.unit).length, 0);
+  const doneTotal = units.reduce((sum, item) => sum + collectTasks(item.unit).length, 0);
 
   lines.push('# 记忆索引');
   lines.push('');
@@ -611,7 +661,7 @@ export function renderIndex(units, { configFile = 'memory/memory.config.json', s
   lines.push('> 这是项目的"当前状态"文件；`BootMemory.md` 只负责启动，不装状态。');
   lines.push('> 索引只回答"现在卡在哪"；事实表在 `memory/<unit>/unit.md`，完整摘要用 `npm run memory:digest`（或加 `--full` 附状态表）。');
   lines.push('');
-  lines.push(`清单：\`${configFile}\`｜单元数：${units.length}｜未完成：${openTotal} 条｜契约：${errors ? `❌ ${errors} 错误` : '✅ 0 错误'} · ${warnings ? `⚠ ${warnings} 警告` : '0 警告'}`);
+  lines.push(`清单：\`${configFile}\`｜单元数：${units.length}｜已完成：${doneTotal} 项｜未完成：${openTotal} 条｜契约：${errors ? `❌ ${errors} 错误` : '✅ 0 错误'} · ${warnings ? `⚠ ${warnings} 警告` : '0 警告'}`);
   lines.push('');
 
   lines.push('## 单元');
@@ -634,6 +684,16 @@ export function renderIndex(units, { configFile = 'memory/memory.config.json', s
     if (!open.length) lines.push('- （没有登记未完成项）');
     for (const item of open.slice(0, openItems)) lines.push(`- ${item.text}　<sub>${item.where}</sub>`);
     if (open.length > openItems) lines.push(`- ……另有 ${open.length - openItems} 条，见单元 ` + '`plan`' + ' 章');
+    lines.push('');
+  }
+
+  const recent = units.flatMap(({ entry, unit }) => collectTasks(unit).map((task) => ({ ...task, unit: entry.id })))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 5);
+  if (recent.length) {
+    lines.push('## 最近完成');
+    lines.push('');
+    for (const item of recent) lines.push(`- ${item.date} · ${item.task}${item.evidence ? `　<sub>${item.unit} · ${item.evidence}</sub>` : `　<sub>${item.unit}</sub>`}`);
     lines.push('');
   }
 

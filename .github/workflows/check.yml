@@ -19,10 +19,41 @@ jobs:
       - name: 校验示例项目的记忆契约
         run: node memory-kit/bin/memory.mjs check --config examples/demo/memory/memory.config.json
 
-      - name: 安装脚本冒烟测试
+      - name: 安装脚本冒烟测试（含可视化模块）
         run: |
           mkdir -p "$RUNNER_TEMP/target"
-          ./install.sh "$RUNNER_TEMP/target"
+          ./install.sh "$RUNNER_TEMP/target" --with-viz
           test -f "$RUNNER_TEMP/target/BootMemory.md"
           test -f "$RUNNER_TEMP/target/memory-kit/bin/memory.mjs"
-          npm_config_loglevel=error node "$RUNNER_TEMP/target/memory-kit/bin/memory.mjs" check --config examples/demo/memory/memory.config.json
+          test -f "$RUNNER_TEMP/target/memory-viz/bin/viz.mjs"
+          node "$RUNNER_TEMP/target/memory-kit/bin/memory.mjs" check --config examples/demo/memory/memory.config.json
+
+      - name: 生成进度页
+        run: node memory-viz/bin/viz.mjs --config examples/demo/memory/memory.config.json --out "$RUNNER_TEMP/progress.html"
+
+      - name: 版本自检（本地文件应一致）
+        run: MEM_KIT_RAW="file://$PWD/memory-kit/VERSION" sh memory-kit/bin/selfcheck.sh
+
+      - name: 版本自检（落后应返回 1）
+        run: |
+          printf '9.9.9\n' > "$RUNNER_TEMP/behind-version"
+          set +e
+          MEM_KIT_RAW="file://$RUNNER_TEMP/behind-version" sh memory-kit/bin/selfcheck.sh
+          code=$?
+          set -e
+          test "$code" -eq 1
+
+      - name: 版本自检（领先应返回 4）
+        run: |
+          printf '0.0.1\n' > "$RUNNER_TEMP/ahead-version"
+          set +e
+          MEM_KIT_RAW="file://$RUNNER_TEMP/ahead-version" sh memory-kit/bin/selfcheck.sh
+          code=$?
+          set -e
+          test "$code" -eq 4
+
+      - name: 进度页包含关键区块
+        run: |
+          grep -q '记忆进度' "$RUNNER_TEMP/progress.html"
+          grep -q '任务时间线' "$RUNNER_TEMP/progress.html"
+          grep -q '证据分布' "$RUNNER_TEMP/progress.html"

@@ -21,6 +21,7 @@ const kitRoot = path.resolve(here, '..');
 const USAGE = `Memory Kit
 
 用法：
+  memory.mjs done --unit <id> --task "完成了什么" [--result 完成] [--evidence E3] [--artifact 产物]
   memory.mjs version                        # 工具版本与支持的契约版本
   memory.mjs new <id> --title "标题" [--kind practice] [--config memory/memory.config.json] [--force]
   memory.mjs check [--config <file>] [--unit <id>] [--json] [--require-vars]
@@ -135,6 +136,63 @@ const commands = {
     const selected = flags.chapter === undefined ? unit.chapters : unit.chapters.filter((chapter) => String(chapter.number) === String(flags.chapter));
     if (!selected.length) throw new MemoryError(`没有第 ${flags.chapter} 章。`);
     for (const chapter of selected) console.log(chapter.html.join('\n'));
+  },
+
+  done(positional, flags) {
+    const { units } = loadUnits(flags);
+    if (units.length !== 1) throw new MemoryError('done 需要 --unit 指定单个单元。');
+    const { unit } = units[0];
+    const task = typeof flags.task === 'string' ? flags.task : '';
+    if (!task) {
+      throw new MemoryError('用法：memory.mjs done --unit <id> --task "完成了什么" [--result 完成] [--evidence E3] [--artifact 产物] [--date YYYY-MM-DD]');
+    }
+    const chapter = unit.chapters.find((item) => item.memoryKind === 'tasks');
+    if (!chapter) throw new MemoryError(`单元 ${unit.meta.id} 没有 tasks 章节：先加一章 "## N. 任务日志" 并在 chapterTypes 里声明 "tasks"。`);
+
+    const date = typeof flags.date === 'string' ? flags.date : new Date().toISOString().slice(0, 10);
+    const values = {
+      日期: date,
+      任务: task,
+      结果: typeof flags.result === 'string' ? flags.result : '完成',
+      证据: typeof flags.evidence === 'string' ? flags.evidence : 'E0',
+      产物: typeof flags.artifact === 'string' ? flags.artifact : '—',
+    };
+
+    const file = unit.file;
+    let text = fs.readFileSync(file, 'utf8');
+    const lines = text.split('\n');
+    const start = lines.findIndex((line) => line.startsWith(`## ${chapter.number}. `));
+    if (start < 0) throw new MemoryError(`在 ${path.relative(cwd, file)} 里找不到第 ${chapter.number} 章。`);
+    let end = lines.length;
+    for (let index = start + 1; index < lines.length; index += 1) {
+      if (/^## \d+\./.test(lines[index])) { end = index; break; }
+    }
+    const cellsOf = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+    let header = null;
+    let lastTable = -1;
+    for (let index = start + 1; index < end; index += 1) {
+      if (/^\|/.test(lines[index])) {
+        if (!header) header = cellsOf(lines[index]);
+        lastTable = index;
+      }
+    }
+    if (!header || lastTable < 0) throw new MemoryError(`第 ${chapter.number} 章没有任务表。`);
+    const row = header.map((cell) => {
+      const key = Object.keys(values).find((name) => cell.includes(name));
+      return key ? values[key] : '—';
+    });
+    lines.splice(lastTable + 1, 0, `| ${row.join(' | ')} |`);
+    text = lines.join('\n').replace(/("updated":\s*")\d{4}-\d{2}-\d{2}(")/, `$1${date}$2`);
+    fs.writeFileSync(file, text);
+
+    const refreshed = parseUnitFile(file, { mode: 'local' });
+    const result = validateUnit(refreshed, { expectedId: refreshed.meta.id });
+    console.log(green(`✓ 已记录：${date} · ${task}`));
+    console.log(dim(`  ${path.relative(cwd, file)} 第 ${chapter.number} 章 · 证据 ${values['证据']} · 产物 ${values['产物']}`));
+    if (result.errors.length) {
+      for (const error of result.errors) console.error(red(`  错误 ${error}`));
+      process.exit(1);
+    }
   },
 
   vars(positional, flags) {

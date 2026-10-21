@@ -1,14 +1,16 @@
 #!/bin/sh
 # Mem-kit 安装脚本：把 BootMemory.md 与 memory-kit 复制到目标项目。
-# 用法: ./install.sh [目标目录] [--force]
+# 用法: ./install.sh [目标目录] [--force] [--with-viz]
 set -eu
 
 FORCE=0
+WITH_VIZ=0
 TARGET="."
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
-    -h|--help) echo "用法: $0 [目标目录] [--force]"; exit 0 ;;
+    --with-viz) WITH_VIZ=1 ;;
+    -h|--help) echo "用法: $0 [目标目录] [--force] [--with-viz]"; exit 0 ;;
     *) TARGET="$arg" ;;
   esac
 done
@@ -29,6 +31,9 @@ copy() {
 
 copy "$SRC/BootMemory.md" "$TARGET/BootMemory.md"
 copy "$SRC/memory-kit" "$TARGET/memory-kit"
+if [ "$WITH_VIZ" -eq 1 ] && [ -d "$SRC/memory-viz" ]; then
+  copy "$SRC/memory-viz" "$TARGET/memory-viz"
+fi
 
 printf '\n安装完成。下一步：\n'
 printf '  1. 对 AI 说：请阅读 BootMemory.md\n'

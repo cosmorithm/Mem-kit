@@ -2,7 +2,7 @@
 { "memory": 1, "id": "demo", "title": "示例单元", "kind": "project",
   "created": "2026-10-21", "updated": "2026-10-21", "verified": "2026-10-21",
   "visibility": "local", "idPrefix": "demo",
-  "chapterTypes": { "0": "guide", "1": "facts", "2": "session", "3": "plan" } }
+  "chapterTypes": { "0": "guide", "1": "facts", "2": "session", "3": "plan", "4": "tasks" } }
 -->
 
 # 记忆：示例单元
@@ -29,3 +29,9 @@
 ## 3. 下一步
 
 - [ ] 在 CI 里验证 Node 18 与 20 两个版本
+
+## 4. 任务日志
+
+| 日期 | 任务 | 结果 | 证据 | 产物 |
+| --- | --- | --- | --- | --- |
+| 2026-10-21 | 建立最小示例 | 完成 | E3 | examples/demo |

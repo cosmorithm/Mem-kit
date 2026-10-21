@@ -85,6 +85,7 @@ memory/
 | `pitfalls` | 报错 → 原因 → 处理 | 累积，可合并同类 | — |
 | `plan` | 待办、路线、待核对 | 完成即删除 | 必须有列表项 |
 | `refs` | 外部资料 | 追加 | 必须有链接 |
+| `tasks` | 已完成的小任务台账 | **只追加**，完成即记 | 必须有 日期/任务/结果 三列的表格 |
 
 经验法则：**写"现在是什么"就是 facts，写"发生过什么"就是 session。** 拿不准时按 session 写，因为它只追加，不会污染事实。
 
@@ -156,6 +157,7 @@ memory/
 - 章节不从 0 开始或不连续；小节编号与所属章不一致
 - `chapterTypes` 指向不存在的章节
 - 代码围栏未闭合；表格缺少分隔行或列数不一致
+- `tasks` 章节没有表格，或表头缺少 日期 / 任务 / 结果
 - 链接使用 http/https 以外的协议
 - `visibility: public` 时出现本机路径、设备号或密钥
 - 变量未解析（仅当显式 `--require-vars`）
@@ -217,7 +219,15 @@ node memory-kit/bin/memory.mjs version
 判断某个项目是否落后于母本：
 
 ```sh
-diff -rq /path/to/project/memory-kit ~/.bootmemory/memory-kit
+sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
+```
+
+退出码：`0` 一致、`1` 落后、`2` 未安装、`3` 无法核对（无网络）、`4` 本地比母本新。更新方式见 `BootMemory.md` §4.2——整目录覆盖，数据不受影响。
+
+需要离线核对时，把 `MEM_KIT_RAW` 指向本地版本文件：
+
+```sh
+MEM_KIT_RAW="file:///path/to/Mem-kit/memory-kit/VERSION" sh memory-kit/bin/selfcheck.sh
 ```
 
 ### 11.2 版本规则
@@ -234,3 +244,37 @@ diff -rq /path/to/project/memory-kit ~/.bootmemory/memory-kit
 3. 全部单元迁移完成后，删除 v1 分支，再把 `memory` 提升为 2。
 
 原则：**版本号是给工具看的，不是给人看的**。正文永远只写一种格式，兼容逻辑全部留在代码里。
+
+## 12. 任务台账与进度可视化
+
+### 12.1 为什么要有 tasks
+
+`plan` 章只回答"还差什么"，任务完成后条目会被删掉——于是**做完了什么没有任何痕迹**。`tasks` 章补上这一半：每完成一个可验收的小任务，追加一行。
+
+```markdown
+## 5. 任务日志
+
+| 日期 | 任务 | 结果 | 证据 | 产物 |
+| --- | --- | --- | --- | --- |
+| 2026-10-21 | 生成 hello world 页面 | 完成 | E3 | index.html |
+```
+
+- **只追加**，不改历史行；写错了就再追加一行说明，不改旧行。
+- 完成 `plan` 条目时：删待办 + 追加一行，两件事一起做。
+- 用命令追加，日期和列对齐都不会错：
+
+```sh
+node memory-kit/bin/memory.mjs done --unit <id> --task "完成了什么" --evidence E3 --artifact 产物
+```
+
+### 12.2 进度可视化（可选模块）
+
+`memory-viz` 是独立模块，`install.sh --with-viz` 才会装。它只读不写，生成一个自包含 HTML：
+
+```sh
+node memory-viz/bin/viz.mjs --config memory/memory.config.json
+```
+
+输出 `memory/progress.html`，包含：单元卡片与完成比例、任务时间线、证据分布、未完成项（区分待办与待核对）。默认用 public 模式遮蔽变量，加 `--local` 才显示本机真值。
+
+模块退出码非 0 即表示读取失败；它不做校验，校验永远由 `memory-kit check` 负责。

@@ -12,7 +12,8 @@
 
 ```sh
 git clone https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
-/tmp/mem-kit/install.sh /path/to/your-project
+/tmp/mem-kit/install.sh /path/to/your-project          # 只装引导与工具
+/tmp/mem-kit/install.sh /path/to/your-project --with-viz  # 另装进度可视化
 ```
 
 然后对你的 AI 说：
@@ -40,7 +41,9 @@ cd /tmp/mem-kit && git pull
 | `memory-kit/SPEC.md` | 记忆契约：章节类型、证据等级、变量、校验规则、版本升级 |
 | `memory-kit/lib/memory.mjs` | 解析、校验、渲染、摘要、索引 |
 | `memory-kit/bin/memory.mjs` | 命令行入口 |
+| `memory-kit/bin/selfcheck.sh` | 与母本比对版本，供 BootMemory §4.2 调用 |
 | `memory-kit/templates/unit.md` | 新单元骨架 |
+| `memory-viz/bin/viz.mjs` | 可选模块：生成自包含的进度页 `memory/progress.html` |
 | `examples/demo/` | 可校验的最小项目，CI 每次都会跑它 |
 | `install.sh` | 安装脚本，幂等，默认不覆盖已有文件 |
 
@@ -59,8 +62,17 @@ node memory-kit/bin/memory.mjs digest --config memory/memory.config.json --unit 
 # 新建单元
 node memory-kit/bin/memory.mjs new <id> --title "标题"
 
+# 记录一个完成的小任务（追加到 tasks 章节）
+node memory-kit/bin/memory.mjs done --unit <id> --task "完成了什么" --evidence E3 --artifact 产物
+
+# 生成进度页（需 --with-viz 安装）
+node memory-viz/bin/viz.mjs --config memory/memory.config.json
+
 # 查看装的是哪一版（工具版本 + 支持的契约版本）
 node memory-kit/bin/memory.mjs version
+
+# 与母本比对版本：0 一致 / 1 落后 / 2 未安装 / 3 无网络 / 4 本地更新
+sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
 ```
 
 多单元只需在 `memory/memory.config.json` 的 `units` 里追加：
@@ -90,6 +102,7 @@ node memory-kit/bin/memory.mjs version
 | `pitfalls` | 报错 → 原因 → 处理 | 累积 |
 | `plan` | 待办与路线 | 完成即删除 |
 | `refs` | 外部资料 | 只追加 |
+| `tasks` | 已完成的小任务台账 | 只追加，完成即记 |
 
 证据等级，不得跨级表述：
 
@@ -109,7 +122,7 @@ node memory-kit/bin/memory.mjs version
 | --- | --- |
 | 记忆契约 | v1 |
 | BootMemory | v1 |
-| memory-kit | v1.1.0 |
+| memory-kit | v1.3.0 |
 
 单元头部写 `"memory": 1`。工具遇到非 v1 的单元会直接报错，而不是按旧规则猜新格式。
 

@@ -30,7 +30,7 @@
 | 一 · 自检 | 确认位置、环境、权限 | §2 | 停下来，把缺什么告诉用户 |
 | 二 · 找设备 | 找 `memory/` 与单元文件 | §3.1 | 去 §5 首次安装 |
 | 三 · 加载 | 按顺序读，控制 token | §3.2 | — |
-| 四 · 校验 | 契约是否成立 | §4 | 去 §6 恢复 |
+| 四 · 校验 | 契约是否成立；工具是否落后于母本 | §4 | 契约错去 §6；版本旧去 §4.2 |
 | 五 · 移交 | 回答 §8 的问题再动手 | §8 | 回读对应阶段 |
 
 正常情况下整个序列在几分钟内走完，总阅读量 5–6k token（索引随单元数增长，但每个单元只增加几行）。
@@ -93,6 +93,35 @@ ls memory/*/unit.md
 npm run memory:check   # 记忆契约
 npm run check          # 全项目校验
 ```
+
+### 4.2 与母本核对工具版本
+
+装过 `memory-kit` 时执行：
+
+```sh
+sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
+```
+
+| 退出码 | 含义 | 动作 |
+| --- | --- | --- |
+| 0 | 与母本一致 | 通过 |
+| 1 | 落后于母本 | 按下面的命令更新 |
+| 2 | 本机没装 `memory-kit` | 去 §5.7 安装，**不要**在这里更新 |
+| 3 | 取不到母本版本（无网络） | 记为"未核对"，继续启动，不要因为网络阻塞工作 |
+| 4 | 本地比母本新 | 母本仓库自身就先推送；项目里的副本说明被人改过，确认后覆盖 |
+
+更新整个记忆工具（不动 `memory/` 里的内容）：
+
+```sh
+git clone --depth 1 https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
+/tmp/mem-kit/install.sh . --force
+sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
+```
+
+`--force` 会覆盖 `BootMemory.md` 与 `memory-kit/`。本地如果改过这两处，先提交或备份；`memory/` 是数据，更新不会碰它。
+更新后重跑一次"契约校验"确认没有回归。
+
+### 4.3 没有工具时
 
 没有工具时，手工四条：
 
@@ -195,6 +224,7 @@ git clone https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
 ```
 
 它会写入 `memory-kit/`。`BootMemory.md` 已存在，安装脚本默认跳过、不覆盖。
+想要进度可视化时加 `--with-viz`，会多装一个 `memory-viz/`。
 
 装完补一份清单，保存为 `memory/memory.config.json`：
 
@@ -208,6 +238,14 @@ git clone https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
 node memory-kit/bin/memory.mjs check --config memory/memory.config.json
 node memory-kit/bin/memory.mjs index --config memory/memory.config.json
 ```
+
+装了 `memory-viz` 时，想看进度图：
+
+```sh
+node memory-viz/bin/viz.mjs --config memory/memory.config.json
+```
+
+生成 `memory/progress.html`，双击即可打开。
 
 - 装了不改变契约：它只是把手写的规则变成程序检查。
 - 装完之后项目离线可用；只有安装和升级需要网络。
