@@ -19,6 +19,8 @@
 - **它有固定顺序。** 每个阶段有明确判据，不通过就跳到指定分支，不靠临场判断。
 - **它能处理"没有系统盘"。** 找不到 `memory/` 时，按 §5 现场安装一个。
 
+可选的驱动 `memory-kit` 来自母本仓库 <https://github.com/cosmorithm/Mem-kit>，需要自动化时才装，见 §5.7。
+
 所以读到本文件的 AI，第一件事不是回答问题，而是**按 §1 走完启动序列**。
 
 ## 1. 启动序列总表
@@ -185,8 +187,30 @@ memory/
 ### 5.7 什么时候该装 memory-kit
 
 - 单元 ≤ 2 个、索引能手工跟上：不需要，单文件就够。
-- 单元 ≥ 3 个，或索引开始和实际不符，或想要自动校验与摘要：把 `memory-kit/` 整个目录复制到项目根，然后跑 `node memory-kit/bin/memory.mjs check`。
-- 装了也不改变契约：它只是把手写的规则变成程序检查。
+- 单元 ≥ 3 个，或索引开始和实际不符，或想要自动校验与摘要：从母本仓库装驱动：
+
+```sh
+git clone https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
+/tmp/mem-kit/install.sh .
+```
+
+它会写入 `memory-kit/`。`BootMemory.md` 已存在，安装脚本默认跳过、不覆盖。
+
+装完补一份清单，保存为 `memory/memory.config.json`：
+
+```json
+{ "version": 1, "units": [{ "id": "<id>", "file": "<id>/unit.md" }] }
+```
+
+然后校验并生成索引：
+
+```sh
+node memory-kit/bin/memory.mjs check --config memory/memory.config.json
+node memory-kit/bin/memory.mjs index --config memory/memory.config.json
+```
+
+- 装了不改变契约：它只是把手写的规则变成程序检查。
+- 装完之后项目离线可用；只有安装和升级需要网络。
 
 ## 6. 分支 B · 恢复（记忆在，但坏了）
 

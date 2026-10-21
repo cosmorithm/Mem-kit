@@ -11,8 +11,8 @@
 ## 快速开始
 
 ```sh
-git clone https://github.com/cosmorithm/Mem-kit.git ~/.bootmemory
-~/.bootmemory/install.sh /path/to/your-project
+git clone https://github.com/cosmorithm/Mem-kit.git /tmp/mem-kit
+/tmp/mem-kit/install.sh /path/to/your-project
 ```
 
 然后对你的 AI 说：
@@ -23,14 +23,14 @@ git clone https://github.com/cosmorithm/Mem-kit.git ~/.bootmemory
 
 之后每次新会话，同一句话即可。项目里没有 `memory/` 时，它会走首次安装流程。
 
-### 没有网络时
+装完之后项目离线可用——只有安装和升级需要网络。
+
+### 更新
 
 ```sh
-cp ~/.bootmemory/BootMemory.md /path/to/project/
-cp -R ~/.bootmemory/memory-kit /path/to/project/
+cd /tmp/mem-kit && git pull
+/tmp/mem-kit/install.sh /path/to/your-project --force
 ```
-
-装完之后项目完全离线可用。
 
 ## 仓库内容
 
