@@ -224,7 +224,13 @@ sh memory-kit/bin/selfcheck.sh; echo "exit=$?"
 
 退出码：`0` 一致、`1` 落后、`2` 未安装、`3` 无法核对（无网络）、`4` 本地比母本新。
 
-`raw.githubusercontent.com` 有 CDN 缓存，刚推送的版本可能几分钟内取到旧值。脚本在"raw 与本地不一致"时会再用 GitHub API 复核一次，以 API 为准；因此刚发布后不会误报"本地更新"。想换核对地址用 `MEM_KIT_RAW`，想换复核地址用 `MEM_KIT_API`。更新方式见 `BootMemory.md` §4.2——整目录覆盖，数据不受影响。
+`raw.githubusercontent.com` 有 CDN 缓存，刚推送后可能几十秒内取到旧值，`contents` API 也在同一张缓存网络上。脚本的处理顺序：
+
+1. 取 raw；与本地不一致时取 API 复核（两者都旧就说明仍在缓存窗口）。
+2. 仍不一致则重试，默认 2 次、每次间隔 5 秒（`MEM_KIT_RETRIES` / `MEM_KIT_PAUSE` 可调）。
+3. 仍不一致才下结论；若本地更新，提示"刚推送就等一分钟再看"。
+
+结论是**建议性**的：`4` 只是提醒，不要据此覆盖本地更新的副本。更新方式见 `BootMemory.md` §4.2——整目录覆盖，数据不受影响。
 
 需要离线核对时，把 `MEM_KIT_RAW` 指向本地版本文件：
 

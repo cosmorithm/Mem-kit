@@ -38,7 +38,7 @@ jobs:
         run: |
           printf '9.9.9\n' > "$RUNNER_TEMP/behind-version"
           set +e
-          MEM_KIT_RAW="file://$RUNNER_TEMP/behind-version" sh memory-kit/bin/selfcheck.sh
+          MEM_KIT_RETRIES=0 MEM_KIT_RAW="file://$RUNNER_TEMP/behind-version" sh memory-kit/bin/selfcheck.sh
           code=$?
           set -e
           test "$code" -eq 1
@@ -54,7 +54,7 @@ jobs:
         run: |
           printf '0.0.1\n' > "$RUNNER_TEMP/ahead-version"
           set +e
-          MEM_KIT_RAW="file://$RUNNER_TEMP/ahead-version" sh memory-kit/bin/selfcheck.sh
+          MEM_KIT_RETRIES=0 MEM_KIT_RAW="file://$RUNNER_TEMP/ahead-version" sh memory-kit/bin/selfcheck.sh
           code=$?
           set -e
           test "$code" -eq 4
